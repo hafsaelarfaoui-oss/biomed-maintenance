@@ -3,35 +3,45 @@ import os
 import streamlit as st
 
 def get_connection():
-    """Retourne une connexion à la base de données SQLite compatible cloud"""
+    """Retourne une connexion SQLite compatible Cloud"""
     
-    # Sur Streamlit Cloud, utiliser un dossier persistant
+    # Utiliser un répertoire persistant sur Streamlit Cloud
     if os.path.exists('/mount'):
-        # Environnement Streamlit Cloud
         data_dir = '/mount/data'
     else:
-        # Environnement local
         data_dir = 'data'
     
+    # Créer le dossier s'il n'existe pas
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
     
     db_path = os.path.join(data_dir, 'database.db')
     
     # Créer la base si elle n'existe pas
-    if not os.path.exists(db_path):
-        init_database(db_path)
+    init_database(db_path)
     
     return sqlite3.connect(db_path, check_same_thread=False)
 
 def init_database(db_path):
-    """Initialise la base de données avec les tables et données de test"""
+    """Initialise la base de données"""
+    
+    # Vérifier si la base existe déjà
+    if os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='utilisateurs'")
+        if cursor.fetchone():
+            conn.close()
+            return
+        conn.close()
+    
+    # Créer une nouvelle base
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Tables
+    # Table utilisateurs
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS utilisateurs (
+    CREATE TABLE utilisateurs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nom TEXT,
         email TEXT UNIQUE,
@@ -40,8 +50,9 @@ def init_database(db_path):
     )
     ''')
     
+    # Table equipements
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS equipements (
+    CREATE TABLE equipements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
         nom TEXT,
@@ -50,8 +61,9 @@ def init_database(db_path):
     )
     ''')
     
+    # Table pannes
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS pannes (
+    CREATE TABLE pannes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         equipement_id INTEGER,
         declare_par INTEGER,
@@ -63,8 +75,9 @@ def init_database(db_path):
     )
     ''')
     
+    # Table interventions
     cursor.execute('''
-    CREATE TABLE IF NOT EXISTS interventions (
+    CREATE TABLE interventions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         panne_id INTEGER,
         technicien_id INTEGER,
@@ -75,14 +88,14 @@ def init_database(db_path):
     )
     ''')
     
-    # Données de test
-    cursor.execute("INSERT OR IGNORE INTO utilisateurs (id, nom, email, mot_de_passe, role) VALUES (1, 'Admin', 'admin@hopital.ma', 'admin123', 'admin')")
-    cursor.execute("INSERT OR IGNORE INTO utilisateurs (id, nom, email, mot_de_passe, role) VALUES (2, 'Ahmed Benali', 'ahmed.benali@hopital.ma', 'tech123', 'technicien')")
-    cursor.execute("INSERT OR IGNORE INTO utilisateurs (id, nom, email, mot_de_passe, role) VALUES (3, 'Service Dialyse', 'dialyse@hopital.ma', 'service123', 'service')")
+    # Insertion des données de test
+    cursor.execute("INSERT INTO utilisateurs (nom, email, mot_de_passe, role) VALUES ('Admin Systeme', 'admin@hopital.ma', 'admin123', 'admin')")
+    cursor.execute("INSERT INTO utilisateurs (nom, email, mot_de_passe, role) VALUES ('Ahmed Benali', 'ahmed.benali@hopital.ma', 'tech123', 'technicien')")
+    cursor.execute("INSERT INTO utilisateurs (nom, email, mot_de_passe, role) VALUES ('Service Dialyse', 'dialyse@hopital.ma', 'service123', 'service')")
     
-    cursor.execute("INSERT OR IGNORE INTO equipements (id, code, nom, service, criticite) VALUES (1, 'HD-01', 'Machine hémodialyse', 'Dialyse', 9)")
-    cursor.execute("INSERT OR IGNORE INTO equipements (id, code, nom, service, criticite) VALUES (2, 'RESP-01', 'Respirateur', 'Urgence', 10)")
-    cursor.execute("INSERT OR IGNORE INTO equipements (id, code, nom, service, criticite) VALUES (3, 'ECG-01', 'ECG', 'Cardiologie', 7)")
+    cursor.execute("INSERT INTO equipements (code, nom, service, criticite) VALUES ('HD-01', 'Machine hémodialyse', 'Dialyse', 9)")
+    cursor.execute("INSERT INTO equipements (code, nom, service, criticite) VALUES ('RESP-01', 'Respirateur', 'Urgence', 10)")
+    cursor.execute("INSERT INTO equipements (code, nom, service, criticite) VALUES ('ECG-01', 'ECG', 'Cardiologie', 7)")
     
     conn.commit()
     conn.close()
