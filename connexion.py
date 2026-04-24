@@ -3,21 +3,27 @@ import os
 import streamlit as st
 
 def get_connection():
-    """Retourne une connexion SQLite compatible Cloud"""
+    """Retourne une connexion SQLite compatible Streamlit Cloud"""
     
-    # Utiliser un répertoire persistant sur Streamlit Cloud
+    # Sur Streamlit Cloud, utiliser un dossier temporaire
     if os.path.exists('/mount'):
-        data_dir = '/mount/data'
+        # Utiliser /tmp qui est accessible en écriture
+        data_dir = '/tmp/biomed_data'
     else:
+        # Environnement local
         data_dir = 'data'
     
     # Créer le dossier s'il n'existe pas
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
+    try:
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+    except:
+        # Si erreur, utiliser /tmp directement
+        data_dir = '/tmp'
     
     db_path = os.path.join(data_dir, 'database.db')
     
-    # Créer la base si elle n'existe pas
+    # Initialiser la base si elle n'existe pas
     init_database(db_path)
     
     return sqlite3.connect(db_path, check_same_thread=False)
@@ -25,19 +31,14 @@ def get_connection():
 def init_database(db_path):
     """Initialise la base de données"""
     
-    # Vérifier si la base existe déjà
-    if os.path.exists(db_path):
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='utilisateurs'")
-        if cursor.fetchone():
-            conn.close()
-            return
-        conn.close()
-    
-    # Créer une nouvelle base
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    
+    # Vérifier si les tables existent déjà
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='utilisateurs'")
+    if cursor.fetchone():
+        conn.close()
+        return
     
     # Table utilisateurs
     cursor.execute('''
